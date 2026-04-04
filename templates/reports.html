@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}📊 Reports & Analytics{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-sm" onclick="RPT.exportData('csv')">⬇ CSV</button>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="filters-bar">
+  <div class="form-group"><label>From</label><input type="date" id="f-from" class="filter-input"></div>
+  <div class="form-group"><label>To</label><input type="date" id="f-to" class="filter-input"></div>
+  <div class="form-group">
+    <label>Cashier</label>
+    <select id="f-cashier" class="filter-input">
+      <option value="">All</option>
+      {% for c in cashiers %}<option value="{{ c.id }}">{{ c.full_name or c.username }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Payment</label>
+    <select id="f-method" class="filter-input">
+      <option value="">All</option>
+      {% for m in ['cash','mpesa','paybill','till','send_money','pochi','card','credit'] %}
+      <option value="{{ m }}">{{ m }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group"><label>Search</label><input type="text" id="f-search" class="filter-input" placeholder="Receipt #…"></div>
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <label style="opacity:0">Quick</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-sm" id="btn-today">Today</button>
+      <button class="btn btn-sm" id="btn-week">Week</button>
+      <button class="btn btn-sm" id="btn-month">Month</button>
+      <button class="btn btn-sm" id="btn-year">Year</button>
+      <button class="btn btn-sm" id="btn-clear">Clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- KPI cards -->
+<div class="kpi-grid">
+  <div class="kpi-card"><div class="kpi-label">Transactions</div><div class="kpi-value" id="kpi-transactions">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Revenue</div><div class="kpi-value amber" id="kpi-revenue">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Discounts</div><div class="kpi-value" id="kpi-discounts">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Avg Sale</div><div class="kpi-value blue" id="kpi-avg">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Tax Collected</div><div class="kpi-value" id="kpi-tax">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Gross Profit</div><div class="kpi-value green" id="kpi-profit">—</div></div>
+</div>
+
+<!-- AI summary -->
+<div class="ai-summary-box" style="margin-bottom:20px">
+  <span id="ai-summary-text" style="color:var(--text2)">Click "✦ AI Insight" to generate a business summary.</span>
+  <button class="btn btn-sm" id="btn-ai-summary" style="margin-top:10px;display:block">✦ AI Insight</button>
+</div>
+
+<!-- Main grid -->
+<div class="reports-main-grid">
+  <div class="reports-primary">
+    <!-- Sales table -->
+    <div class="card reports-sales-table" style="padding:0;margin-bottom:18px">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div class="card-title" style="margin:0">Sales History</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Receipt</th><th>Date</th><th>Cashier</th><th>Method</th><th class="text-right">Total</th><th></th></tr></thead>
+          <tbody id="sales-tbody"><tr><td colspan="6" class="text-center text-muted" style="padding:24px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 18px"><div id="pagination" class="pagination"></div></div>
+    </div>
+    <div id="reports-sales-mobile" class="mobile-only" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px"></div>
+
+    <!-- Hourly chart -->
+    <div class="card">
+      <div class="card-title">Sales by Hour</div>
+      <div id="hourly-chart" style="height:130px"></div>
+    </div>
+  </div>
+
+  <div class="reports-side">
+    <!-- Top products -->
+    <div class="card reports-side-table" style="padding:0;margin-bottom:16px">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border)"><div class="card-title" style="margin:0">Top Products</div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Product</th><th class="text-right">Qty</th><th class="text-right">Revenue</th></tr></thead>
+        <tbody id="top-products-body"><tr><td colspan="3" class="text-muted text-center" style="padding:12px">Loading…</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <!-- Payment split -->
+    <div class="card reports-side-table" style="padding:0;margin-bottom:16px">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border)"><div class="card-title" style="margin:0">Payment Methods</div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Method</th><th class="text-right">Count</th><th class="text-right">Total</th></tr></thead>
+        <tbody id="payment-split-body"><tr><td colspan="3" class="text-muted text-center" style="padding:12px">Loading…</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <!-- By cashier -->
+    <div class="card reports-side-table" style="padding:0">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border)"><div class="card-title" style="margin:0">By Cashier</div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Cashier</th><th class="text-right">Sales</th><th class="text-right">Revenue</th></tr></thead>
+        <tbody id="cashier-body"><tr><td colspan="3" class="text-muted text-center" style="padding:12px">Loading…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<div id="reports-side-mobile" class="mobile-only" style="display:flex;flex-direction:column;gap:10px;margin-top:12px"></div>
+
+<!-- Sale detail modal -->
+<div class="modal-overlay" id="sale-detail-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Sale Detail</div>
+      <button class="modal-close" onclick="closeModal('sale-detail-modal')">×</button>
+    </div>
+    <div class="modal-body" id="sale-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('sale-detail-modal')">Close</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨 Print</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+<script>RPT.init({ currency: '{{ currency }}' });</script>
+{% endblock %}

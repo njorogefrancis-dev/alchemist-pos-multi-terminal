@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}POS Terminal{% endblock %}
+{% block page_title %}🖥️ POS Terminal{% endblock %}
+{% block topbar_actions %}
+  <div id="alerts-badge" class="badge badge-red" style="display:none">0</div>
+  <span style="color:var(--text3);font-size:11px;font-family:var(--font-mono)">
+    {{ current_user.full_name or current_user.username }}
+  </span>
+{% endblock %}
+
+{% block content %}
+<style>
+  .page-body { padding: 0; overflow: hidden; }
+</style>
+
+<div class="pos-layout">
+  <div class="pos-mobile-tabs">
+    <button type="button" class="pos-tab-btn active" data-tab="products" onclick="POS.switchMobileTab('products')">Products</button>
+    <button type="button" class="pos-tab-btn" data-tab="cart" onclick="POS.switchMobileTab('cart')">
+      Cart <span class="cart-count-badge" id="cart-count-mobile">0</span>
+    </button>
+  </div>
+
+  <!-- LEFT: Browse -->
+  <div class="pos-browse" data-mobile-panel="products">
+    <!-- Search -->
+    <div class="pos-search-row">
+      <div class="search-wrap" style="flex:1">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="pos-search" placeholder="Search products or describe what you need…">
+        {% if settings.ai_enabled %}<span class="ai-badge">AI</span>{% endif %}
+      </div>
+      <button class="btn btn-icon" onclick="POS.loadProducts()" title="Reset search">↺</button>
+    </div>
+
+    <!-- Categories -->
+    <div class="cat-strip">
+      <div class="cat-pill active" data-cat="All">
+        <span class="cat-emoji">🏪</span> All
+      </div>
+      {% for cat in categories %}
+      <div class="cat-pill" data-cat="{{ cat.name }}">
+        <span class="cat-emoji">{{ cat.icon }}</span> {{ cat.name }}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- AI Suggestions -->
+    {% if settings.ai_enabled %}
+    <div id="ai-suggest-label" class="ai-label hidden">✦ Suggested Add-ons</div>
+    <div id="ai-suggest-strip" class="ai-suggest-strip hidden"></div>
+    {% endif %}
+
+    <!-- Product Grid -->
+    <div class="product-grid" id="product-grid">
+      <div class="no-products"><div class="no-icon spin">⟳</div><p>Loading products…</p></div>
+    </div>
+
+    <button type="button" class="pos-mobile-cartpeek" onclick="POS.switchMobileTab('cart')">
+      <span><strong id="peek-count">0</strong> items in cart</span>
+      <span id="peek-total">{{ settings.currency_symbol }} 0.00</span>
+    </button>
+  </div>
+
+  <!-- RIGHT: Cart -->
+  <div class="pos-cart" data-mobile-panel="cart">
+    <div class="cart-top">
+      <div class="cart-heading">
+        Cart <span class="cart-count-badge" id="cart-count">0</span>
+      </div>
+      <button class="btn btn-xs btn-danger" onclick="if(confirmAction('Clear cart?')) POS.clearCart()">Clear</button>
+    </div>
+
+    <div class="cart-items" id="cart-items">
+      <div class="cart-empty">
+        <div class="empty-icon">🛒</div>
+        <span>Cart is empty</span>
+        <span style="font-size:10px;color:var(--text3)">Tap products to add</span>
+      </div>
+    </div>
+
+    <!-- Stock Alerts (mini) -->
+    <div style="padding:0 12px;max-height:90px;overflow-y:auto">
+      <div id="pos-alerts"></div>
+    </div>
+
+    <!-- Totals -->
+    <div class="cart-totals">
+      <div class="discount-row">
+        <label>DISC. ({{ settings.currency_symbol }})</label>
+        <input type="number" id="discount-input" value="0" min="0" step="1"
+               style="max-width:110px;text-align:right;font-family:var(--font-mono)">
+      </div>
+      <div class="totals-row">
+        <span>Subtotal</span><span class="t-val" id="t-subtotal">{{ settings.currency_symbol }} 0.00</span>
+      </div>
+      <div class="totals-row">
+        <span>Discount</span><span class="t-val" id="t-discount" style="color:var(--green)">−{{ settings.currency_symbol }} 0.00</span>
+      </div>
+      <div class="totals-row">
+        <span>{{ settings.tax_name }} ({{ settings.tax_rate }}%{% if settings.tax_inclusive %} incl.{% endif %})</span>
+        <span class="t-val" id="t-tax">{{ settings.currency_symbol }} 0.00</span>
+      </div>
+      <div class="totals-grand">
+        <span class="t-label">TOTAL</span>
+        <span class="t-amount" id="t-total">{{ settings.currency_symbol }} 0.00</span>
+      </div>
+    </div>
+
+    <!-- Payment -->
+    <div class="pay-grid" id="pay-grid">
+      {% for pm in payment_methods %}
+      <button class="pay-btn" onclick="POS.openPayment('{{ pm.name }}','{{ pm.label }}')" disabled>
+        <span class="pay-icon">{{ pm.icon }}</span>
+        <span>{{ pm.label }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="payment-overlay">
+  <div class="modal" id="payment-modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="pm-title">Payment</div>
+      <button class="modal-close" onclick="closeModal('payment-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="payment-total-display">
+        <div class="ptd-label">Amount Due</div>
+        <div class="ptd-amount" id="pm-total-amount">{{ settings.currency_symbol }} 0.00</div>
+      </div>
+
+      <!-- Cash -->
+      <div id="pm-cash-section" class="hidden">
+        <div class="form-group">
+          <label>Amount Tendered ({{ settings.currency_symbol }})</label>
+          <input type="number" id="cash-tendered" min="0" step="1"
+                 oninput="POS.updateChange()"
+                 style="font-size:20px;text-align:center;font-family:var(--font-mono)">
+        </div>
+        <div style="text-align:center;margin:10px 0">
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);letter-spacing:1px;margin-bottom:4px">CHANGE</div>
+          <div class="change-display" id="change-display">{{ settings.currency_symbol }} 0.00</div>
+        </div>
+        <!-- Quick tender buttons -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          {% for amt in [50, 100, 200, 500, 1000] %}
+          <button class="btn btn-sm" onclick="document.getElementById('cash-tendered').value={{ amt }};POS.updateChange()">{{ amt }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- M-Pesa / Digital -->
+      <div id="pm-mpesa-section" class="hidden">
+        <div class="account-display">
+          <div style="font-size:10px;color:var(--text3);letter-spacing:1px;font-family:var(--font-mono);margin-bottom:6px" id="pm-account-label">PAYBILL</div>
+          <div class="account-number" id="pm-account-number">—</div>
+          <div style="color:var(--text3);font-size:11px;margin-top:8px">Ask customer to complete payment, then confirm below.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('payment-overlay')">Cancel</button>
+      <button class="btn btn-primary" id="confirm-pay-btn" onclick="POS.confirmPayment()">✓ Confirm Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECEIPT MODAL -->
+<div class="modal-overlay" id="receipt-overlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Receipt</div>
+      <button class="modal-close" onclick="closeModal('receipt-overlay')">×</button>
+    </div>
+    <div class="modal-body" id="receipt-content"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('receipt-overlay');POS.loadProducts()">New Sale</button>
+      <button class="btn btn-primary" onclick="POS.printReceipt()">🖨 Print</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pos.js') }}"></script>
+<script>
+POS.init({
+  settings: {{ settings | tojson }},
+  paymentMethods: [{% for pm in payment_methods %}{"name":{{ pm.name|tojson }},"label":{{ pm.label|tojson }},"icon":{{ pm.icon|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]
+});
+</script>
+{% endblock %}

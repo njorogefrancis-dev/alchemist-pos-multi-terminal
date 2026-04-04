@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% block title %}Users{% endblock %}
+{% block page_title %}👥 Users{% endblock %}
+{% block topbar_actions %}<button class="btn btn-primary btn-sm" onclick="USR.openAdd()">+ Add User</button>{% endblock %}
+
+{% block content %}
+<div class="card" style="padding:0">
+  <div class="table-wrap desktop-only">
+    <table>
+      <thead><tr>
+        <th>User</th><th>Role</th><th>Status</th>
+        <th>Last Login</th><th>Created</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="user-avatar" style="background:{{ u.avatar_color }};width:30px;height:30px;font-size:11px;flex-shrink:0">{{ u.initials() }}</div>
+              <div>
+                <div style="font-weight:600;color:var(--text)">{{ u.full_name or u.username }}</div>
+                <div class="td-mono" style="font-size:10px;color:var(--text3)">@{{ u.username }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if u.role == 'admin' %}<span class="badge badge-amber">Admin</span>
+            {% elif u.role == 'inventory_manager' %}<span class="badge badge-blue">Inv. Manager</span>
+            {% else %}<span class="badge badge-gray">Cashier</span>{% endif %}
+          </td>
+          <td>{% if u.is_active %}<span class="badge badge-green">Active</span>{% else %}<span class="badge badge-red">Inactive</span>{% endif %}</td>
+          <td class="td-mono" style="font-size:11px">{{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '—' }}</td>
+          <td class="td-mono" style="font-size:11px">{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '—' }}</td>
+          <td>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <button class="btn btn-xs" onclick="USR.openEdit({{ u.id }},{{ u.username|tojson }},{{ (u.full_name or '')|tojson }},{{ u.role|tojson }},{{ (u.security_question or '')|tojson }},{{ (u.security_question2 or '')|tojson }},{{ (u.security_question3 or '')|tojson }})">✏ Edit</button>
+              <button class="btn btn-xs btn-warning" onclick="USR.openReset({{ u.id }},{{ u.username|tojson }})">🔑 PW</button>
+              {% if u.id != current_user.id %}
+              <button class="btn btn-xs {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}" onclick="USR.toggle({{ u.id }},{{ u.is_active|tojson }})">{{ '⏸' if u.is_active else '▶' }}</button>
+              <button class="btn btn-xs btn-danger" onclick="USR.delete({{ u.id }},{{ u.username|tojson }})">✕</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted" style="padding:28px">No users yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mobile-only" style="display:flex;flex-direction:column;gap:10px">
+  {% for u in users %}
+  <div class="card admin-mobile-card">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="user-avatar" style="background:{{ u.avatar_color }};width:32px;height:32px;font-size:11px;flex-shrink:0">{{ u.initials() }}</div>
+      <div style="min-width:0;flex:1">
+        <div style="font-weight:700;color:var(--text)">{{ u.full_name or u.username }}</div>
+        <div class="td-mono" style="font-size:10px;color:var(--text3)">@{{ u.username }}</div>
+      </div>
+      {% if u.is_active %}<span class="badge badge-green">Active</span>{% else %}<span class="badge badge-red">Inactive</span>{% endif %}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      {% if u.role == 'admin' %}<span class="badge badge-amber">Admin</span>
+      {% elif u.role == 'inventory_manager' %}<span class="badge badge-blue">Inv. Manager</span>
+      {% else %}<span class="badge badge-gray">Cashier</span>{% endif %}
+      <span class="badge badge-gray">Last: {{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '—' }}</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn btn-xs" onclick="USR.openEdit({{ u.id }},{{ u.username|tojson }},{{ (u.full_name or '')|tojson }},{{ u.role|tojson }},{{ (u.security_question or '')|tojson }},{{ (u.security_question2 or '')|tojson }},{{ (u.security_question3 or '')|tojson }})">✏ Edit</button>
+      <button class="btn btn-xs btn-warning" onclick="USR.openReset({{ u.id }},{{ u.username|tojson }})">🔑 PW</button>
+      {% if u.id != current_user.id %}
+      <button class="btn btn-xs {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}" onclick="USR.toggle({{ u.id }},{{ u.is_active|tojson }})">{{ '⏸' if u.is_active else '▶' }}</button>
+      <button class="btn btn-xs btn-danger" onclick="USR.delete({{ u.id }},{{ u.username|tojson }})">✕</button>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="card text-center text-muted">No users yet</div>
+  {% endfor %}
+</div>
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <div class="modal-title" id="user-modal-title">Add User</div>
+      <button class="modal-close" onclick="closeModal('user-modal')">×</button>
+    </div>
+    <div class="modal-body" style="max-height:72vh;overflow-y:auto;padding:20px 22px">
+      <input type="hidden" id="u-id">
+
+      <div style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px">Account Details</div>
+      <div class="form-row">
+        <div class="form-group"><label>Username *</label><input type="text" id="u-username" placeholder="e.g. jane_cashier"></div>
+        <div class="form-group"><label>Full Name</label><input type="text" id="u-fullname" placeholder="e.g. Jane Wanjiku"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" id="u-pw-wrap">
+          <label>Password *</label>
+          <input type="password" id="u-password" placeholder="Min 6 characters">
+        </div>
+        <div class="form-group">
+          <label>Role *</label>
+          <select id="u-role">
+            <option value="cashier">Cashier</option>
+            <option value="inventory_manager">Inventory Manager</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:18px 0"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px">Security Questions <span style="color:var(--text3);font-weight:400;font-size:10px">(used for password recovery)</span></div>
+
+      <div class="form-group">
+        <label>Question 1</label>
+        <input type="text" id="u-q1" placeholder="e.g. What was your first pet's name?">
+      </div>
+      <div class="form-group">
+        <label>Answer 1 <span style="color:var(--text3);font-weight:400">(leave blank when editing to keep existing)</span></label>
+        <input type="text" id="u-a1" placeholder="Your answer">
+      </div>
+      <div class="form-group">
+        <label>Question 2</label>
+        <input type="text" id="u-q2" placeholder="e.g. What city were you born in?">
+      </div>
+      <div class="form-group">
+        <label>Answer 2</label>
+        <input type="text" id="u-a2" placeholder="Your answer">
+      </div>
+      <div class="form-group">
+        <label>Question 3</label>
+        <input type="text" id="u-q3" placeholder="e.g. What is your mother's maiden name?">
+      </div>
+      <div class="form-group">
+        <label>Answer 3</label>
+        <input type="text" id="u-a3" placeholder="Your answer">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('user-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-user-btn" onclick="USR.save()">💾 Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET PW MODAL -->
+<div class="modal-overlay" id="reset-modal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title">🔑 Reset Password</div>
+      <button class="modal-close" onclick="closeModal('reset-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="reset-uid">
+      <p style="color:var(--text2);font-size:12px;margin-bottom:16px">
+        Resetting password for: <strong id="reset-uname" style="color:var(--amber)"></strong>
+      </p>
+      <div class="form-group"><label>New Password</label><input type="password" id="reset-pw" placeholder="Min 6 characters"></div>
+      <div class="form-group"><label>Confirm Password</label><input type="password" id="reset-pw2" placeholder="Repeat password"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('reset-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-reset-btn" onclick="USR.saveReset()">✓ Reset</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const USR = {
+  openAdd() {
+    ['u-id','u-username','u-fullname','u-password','u-q1','u-a1','u-q2','u-a2','u-q3','u-a3']
+      .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('u-username').disabled = false;
+    document.getElementById('u-role').value = 'cashier';
+    document.getElementById('u-pw-wrap').style.display = '';
+    document.getElementById('user-modal-title').textContent = 'Add User';
+    openModal('user-modal');
+    setTimeout(() => document.getElementById('u-username').focus(), 150);
+  },
+  openEdit(id, username, fullname, role, q1, q2, q3) {
+    document.getElementById('u-id').value      = id;
+    document.getElementById('u-username').value = username;
+    document.getElementById('u-username').disabled = true;
+    document.getElementById('u-fullname').value = fullname || '';
+    document.getElementById('u-role').value     = role;
+    document.getElementById('u-q1').value       = q1 || '';
+    document.getElementById('u-q2').value       = q2 || '';
+    document.getElementById('u-q3').value       = q3 || '';
+    ['u-a1','u-a2','u-a3','u-password'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('u-pw-wrap').style.display = 'none';
+    document.getElementById('user-modal-title').textContent = 'Edit User — ' + username;
+    openModal('user-modal');
+  },
+  async save() {
+    const id = document.getElementById('u-id').value;
+    const payload = {
+      username:  document.getElementById('u-username').value.trim(),
+      full_name: document.getElementById('u-fullname').value.trim(),
+      role:      document.getElementById('u-role').value,
+      q1: document.getElementById('u-q1').value,
+      a1: document.getElementById('u-a1').value,
+      q2: document.getElementById('u-q2').value,
+      a2: document.getElementById('u-a2').value,
+      q3: document.getElementById('u-q3').value,
+      a3: document.getElementById('u-a3').value,
+    };
+    if (!payload.username) { showFlash('Username required', 'error'); return; }
+    if (!id) {
+      payload.password = document.getElementById('u-password').value;
+      if (!payload.password || payload.password.length < 6) {
+        showFlash('Password must be at least 6 characters', 'error'); return;
+      }
+    }
+    const btn = document.getElementById('save-user-btn');
+    setLoading(btn, true, 'Saving…');
+    try {
+      if (id) await api(`/api/users/${id}`, 'PUT', payload);
+      else     await api('/api/users', 'POST', payload);
+      showFlash(id ? 'User updated' : 'User added', 'success');
+      closeModal('user-modal');
+      setTimeout(() => location.reload(), 900);
+    } catch(e) { showFlash(e.message, 'error'); }
+    finally { setLoading(btn, false); }
+  },
+  openReset(id, uname) {
+    document.getElementById('reset-uid').value         = id;
+    document.getElementById('reset-uname').textContent = uname;
+    document.getElementById('reset-pw').value          = '';
+    document.getElementById('reset-pw2').value         = '';
+    openModal('reset-modal');
+    setTimeout(() => document.getElementById('reset-pw').focus(), 150);
+  },
+  async saveReset() {
+    const id   = document.getElementById('reset-uid').value;
+    const pw   = document.getElementById('reset-pw').value;
+    const pw2  = document.getElementById('reset-pw2').value;
+    if (!pw || pw.length < 6) { showFlash('Password must be at least 6 characters', 'error'); return; }
+    if (pw !== pw2) { showFlash('Passwords do not match', 'error'); return; }
+    const btn = document.getElementById('save-reset-btn');
+    setLoading(btn, true, 'Saving…');
+    try {
+      await api(`/api/users/${id}/reset-password`, 'POST', { password: pw });
+      showFlash('Password reset successfully', 'success');
+      closeModal('reset-modal');
+    } catch(e) { showFlash(e.message, 'error'); }
+    finally { setLoading(btn, false); }
+  },
+  async toggle(id, active) {
+    if (!confirmAction(active ? 'Deactivate this user?' : 'Activate this user?')) return;
+    try {
+      await api(`/api/users/${id}/toggle`, 'POST');
+      showFlash(active ? 'User deactivated' : 'User activated', 'success');
+      setTimeout(() => location.reload(), 800);
+    } catch(e) { showFlash(e.message, 'error'); }
+  },
+  async delete(id, uname) {
+    if (!confirmAction(`Delete user "${uname}"? Cannot be undone.`)) return;
+    try {
+      await api(`/api/users/${id}`, 'DELETE');
+      showFlash('User deleted', 'success');
+      setTimeout(() => location.reload(), 800);
+    } catch(e) { showFlash(e.message, 'error'); }
+  }
+};
+</script>
+{% endblock %}

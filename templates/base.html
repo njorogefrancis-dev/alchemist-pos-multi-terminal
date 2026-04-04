@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}AlchemyPOS{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+<script>
+(function(){
+  var t = document.cookie.match(/theme=([^;]+)/);
+  if(t) document.documentElement.setAttribute('data-theme', t[1]);
+})();
+</script>
+</head>
+<body id="app-body">
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">⚗</div>
+      <div class="logo-text">
+        <div class="logo-name">AlchemyPOS</div>
+        <div class="logo-sub">v2.0</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Operations</div>
+      <a href="{{ url_for('pos.pos') }}" class="nav-item">
+        <span class="nav-icon">🖥️</span><span>POS Terminal</span>
+      </a>
+      {% if current_user.role in ('admin','inventory_manager') %}
+      <a href="{{ url_for('inventory.inventory') }}" class="nav-item">
+        <span class="nav-icon">📦</span><span>Inventory</span>
+      </a>
+      {% endif %}
+    </div>
+
+    {% if current_user.role == 'admin' %}
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Management</div>
+      <a href="{{ url_for('reports.reports') }}" class="nav-item">
+        <span class="nav-icon">📊</span><span>Reports</span>
+      </a>
+      <a href="{{ url_for('users.users') }}" class="nav-item">
+        <span class="nav-icon">👥</span><span>Users</span>
+      </a>
+      <a href="{{ url_for('backups.backups') }}" class="nav-item">
+        <span class="nav-icon">💾</span><span>Backups</span>
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">System</div>
+      <a href="{{ url_for('settings.settings') }}" class="nav-item">
+        <span class="nav-icon">⚙️</span><span>Settings</span>
+      </a>
+      <a href="{{ url_for('audit.audit_log') }}" class="nav-item">
+        <span class="nav-icon">📋</span><span>Audit Log</span>
+      </a>
+    </div>
+    {% endif %}
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" style="background:{{ current_user.avatar_color }}">{{ current_user.initials() }}</div>
+      <div class="user-info">
+        <div class="user-name">{{ current_user.full_name or current_user.username }}</div>
+        <div class="user-role">{{ current_user.role_label() }}</div>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Logout">⏻</a>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <button class="mobile-menu-btn" type="button" onclick="toggleMobileMore(true)" aria-label="Open menu">☰</button>
+      <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+    </div>
+
+    <div class="page-body">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:8px">
+            {% for cat, msg in messages %}
+              <div class="flash flash-{{ cat }}">{{ msg }}
+                <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+<div id="flash-stack" class="flash-stack"></div>
+
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script>
+// Apply saved theme
+(function(){
+  var saved = localStorage.getItem('alchemy_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+{% block scripts %}{% endblock %}
+
+  <!-- Mobile bottom nav (visible on phones) -->
+  <nav class="mobile-nav">
+    <a href="{{ url_for('pos.pos') }}" class="{{ 'active' if request.endpoint == 'pos.pos' else '' }}">
+      <span class="nav-icon">🖥️</span><span class="nav-text">POS</span>
+    </a>
+    {% if current_user.role in ('admin','inventory_manager') %}
+    <a href="{{ url_for('inventory.inventory') }}" class="{{ 'active' if request.endpoint == 'inventory.inventory' else '' }}">
+      <span class="nav-icon">📦</span><span class="nav-text">Stock</span>
+    </a>
+    {% endif %}
+    <button type="button" onclick="toggleMobileMore(true)">
+      <span class="nav-icon">☰</span><span class="nav-text">More</span>
+    </button>
+    <a href="{{ url_for('auth.logout') }}">
+      <span class="nav-icon">⏻</span><span class="nav-text">Logout</span>
+    </a>
+  </nav>
+
+  <div class="mobile-more-overlay" id="mobile-more-overlay" onclick="toggleMobileMore(false)"></div>
+  <aside class="mobile-more-sheet" id="mobile-more-sheet">
+    <div class="mobile-more-head">
+      <strong>Menu</strong>
+      <button type="button" class="btn btn-xs" onclick="toggleMobileMore(false)">Close</button>
+    </div>
+    {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('reports.reports') }}" class="mobile-more-link">📊 Reports</a>
+    <a href="{{ url_for('users.users') }}" class="mobile-more-link">👥 Users</a>
+    <a href="{{ url_for('backups.backups') }}" class="mobile-more-link">💾 Backups</a>
+    <a href="{{ url_for('settings.settings') }}" class="mobile-more-link">⚙️ Settings</a>
+    <a href="{{ url_for('audit.audit_log') }}" class="mobile-more-link">📋 Audit Log</a>
+    {% endif %}
+    {% if current_user.role in ('admin','inventory_manager') %}
+    <a href="{{ url_for('inventory.inventory') }}" class="mobile-more-link">📦 Inventory</a>
+    {% endif %}
+    <a href="{{ url_for('pos.pos') }}" class="mobile-more-link">🖥️ POS Terminal</a>
+  </aside>
+</body>
+</html>

@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}⚙️ Settings{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="settings-grid">
+
+    <!-- Store Info -->
+    <div class="settings-section">
+      <div class="settings-section-header">🏪 Store Information <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-group"><label>Shop Name</label><input type="text" name="shop_name" value="{{ s.shop_name }}"></div>
+        <div class="form-group"><label>Address</label><input type="text" name="shop_address" value="{{ s.shop_address }}"></div>
+        <div class="form-group"><label>Phone</label><input type="text" name="shop_phone" value="{{ s.shop_phone }}"></div>
+        <div class="form-group"><label>Email</label><input type="email" name="shop_email" value="{{ s.shop_email }}"></div>
+      </div>
+    </div>
+
+    <!-- M-Pesa -->
+    <div class="settings-section">
+      <div class="settings-section-header">📱 M-Pesa & Payments <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-group"><label>Paybill Number</label><input type="text" name="paybill_number" value="{{ s.paybill_number }}"></div>
+        <div class="form-group"><label>Till Number</label><input type="text" name="till_number" value="{{ s.till_number }}"></div>
+        <div class="form-group"><label>Send Money Name</label><input type="text" name="send_money_name" value="{{ s.send_money_name }}"></div>
+        <div class="form-group"><label>Pochi Number</label><input type="text" name="pochi_number" value="{{ s.pochi_number }}"></div>
+        <div style="border-top:1px solid var(--border);padding-top:12px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;margin-bottom:10px">ENABLED METHODS</div>
+          {% for pm in payment_methods %}
+          <div class="checkbox-group">
+            <input type="checkbox" id="pm_{{ pm.name }}" name="pm_{{ pm.name }}" {% if pm.is_active %}checked{% endif %}>
+            <label for="pm_{{ pm.name }}">{{ pm.icon }} {{ pm.label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Pricing & Tax -->
+    <div class="settings-section">
+      <div class="settings-section-header">💰 Pricing & Tax <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-row">
+          <div class="form-group"><label>Currency Symbol</label><input type="text" name="currency_symbol" value="{{ s.currency_symbol }}"></div>
+          <div class="form-group"><label>Currency Name</label><input type="text" name="currency_name" value="{{ s.currency_name }}"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Tax Rate (%)</label><input type="number" name="tax_rate" value="{{ s.tax_rate }}" min="0" max="100" step="0.01"></div>
+          <div class="form-group"><label>Tax Name</label><input type="text" name="tax_name" value="{{ s.tax_name }}"></div>
+        </div>
+        <div class="form-group"><label>Max Discount (%)</label><input type="number" name="max_discount_pct" value="{{ s.max_discount_pct }}" min="0" max="100"></div>
+        <div class="checkbox-group"><input type="checkbox" id="tax_inc" name="tax_inclusive" {% if s.tax_inclusive=='1' %}checked{% endif %}><label for="tax_inc">Tax Inclusive (prices include VAT)</label></div>
+        <div class="checkbox-group"><input type="checkbox" id="auto_p" name="auto_print_receipt" {% if s.auto_print_receipt=='1' %}checked{% endif %}><label for="auto_p">Auto-Print Receipts</label></div>
+      </div>
+    </div>
+
+    <!-- Receipt -->
+    <div class="settings-section">
+      <div class="settings-section-header">🧾 Receipt <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-group"><label>Header Text</label><input type="text" name="receipt_header" value="{{ s.receipt_header }}"></div>
+        <div class="form-group"><label>Footer Text</label><input type="text" name="receipt_footer" value="{{ s.receipt_footer }}"></div>
+        <div class="checkbox-group"><input type="checkbox" id="show_tax" name="show_tax_on_receipt" {% if s.show_tax_on_receipt=='1' %}checked{% endif %}><label for="show_tax">Show Tax on Receipt</label></div>
+      </div>
+    </div>
+
+    <!-- Inventory -->
+    <div class="settings-section">
+      <div class="settings-section-header">📦 Inventory <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-row">
+          <div class="form-group"><label>Default Low Stock</label><input type="number" name="default_low_stock" value="{{ s.default_low_stock }}" min="0"></div>
+          <div class="form-group"><label>Default Unit</label><input type="text" name="default_unit" value="{{ s.default_unit }}"></div>
+        </div>
+        <div class="checkbox-group"><input type="checkbox" id="tr_stk" name="track_stock" {% if s.track_stock=='1' %}checked{% endif %}><label for="tr_stk">Track Stock Levels</label></div>
+        <div class="checkbox-group"><input type="checkbox" id="w_oos" name="warn_out_of_stock" {% if s.warn_out_of_stock=='1' %}checked{% endif %}><label for="w_oos">Warn on Out of Stock</label></div>
+        <div class="checkbox-group"><input type="checkbox" id="a_neg" name="allow_negative_stock" {% if s.allow_negative_stock=='1' %}checked{% endif %}><label for="a_neg">Allow Negative Stock</label></div>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div class="settings-section">
+      <div class="settings-section-header">✦ AI Features (Claude) <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-group">
+          <label>Anthropic API Key</label>
+          <input type="password" name="anthropic_api_key" value="{{ s.anthropic_api_key }}" placeholder="sk-ant-…">
+          <div class="form-hint">Get your key at console.anthropic.com. Powers AI search and upsell suggestions.</div>
+        </div>
+        <div class="checkbox-group"><input type="checkbox" id="ai_en" name="ai_enabled" {% if s.ai_enabled=='1' %}checked{% endif %}><label for="ai_en">Enable AI Features</label></div>
+      </div>
+    </div>
+
+
+    <!-- Theme -->
+    <div class="settings-section">
+      <div class="settings-section-header">🎨 Appearance & Theme <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-group">
+          <label>Theme</label>
+          <select name="theme" id="theme-select" onchange="SETT.applyTheme(this.value)">
+            <option value="dark" {% if s.theme == 'dark' %}selected{% endif %}>🌑 Dark (Default)</option>
+            <option value="light" {% if s.theme == 'light' %}selected{% endif %}>☀️ Light</option>
+          </select>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:10px">
+          <div onclick="SETT.applyTheme('dark')" style="cursor:pointer;padding:12px 16px;background:#080C12;border:2px solid {% if s.theme=='dark' %}var(--amber){% else %}var(--border){% endif %};border-radius:8px;color:#F5A623;font-size:11px;font-weight:700" id="preview-dark">🌑 Dark</div>
+          <div onclick="SETT.applyTheme('light')" style="cursor:pointer;padding:12px 16px;background:#F5F7FA;border:2px solid {% if s.theme=='light' %}var(--amber){% else %}var(--border){% endif %};border-radius:8px;color:#1A2332;font-size:11px;font-weight:700" id="preview-light">☀️ Light</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="settings-section">
+      <div class="settings-section-header">🏷️ Categories <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input type="text" id="new-cat" placeholder="New category name" style="flex:1">
+          <button type="button" class="btn btn-primary btn-sm" onclick="SETT.addCat()">+ Add</button>
+        </div>
+        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius)" id="cat-list">
+          {% for cat in categories %}
+          <div class="cat-list-item" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px" data-id="{{ cat.id }}">
+            <span>{{ cat.icon }} {{ cat.name }}</span>
+            <button type="button" class="btn btn-xs btn-danger" onclick="SETT.delCat({{ cat.id }},{{ cat.name|tojson }})">✕</button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Backup -->
+    <div class="settings-section">
+      <div class="settings-section-header">💾 Backup <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-group"><label>Backup Path</label><input type="text" name="backup_path" value="{{ s.backup_path }}"></div>
+        <div class="checkbox-group"><input type="checkbox" id="a_bkp" name="auto_backup" {% if s.auto_backup=='1' %}checked{% endif %}><label for="a_bkp">Auto Backup on Login</label></div>
+      </div>
+    </div>
+
+    <!-- Password -->
+    <div class="settings-section">
+      <div class="settings-section-header">🔒 Change Password <span class="section-chevron">▾</span></div>
+      <div class="settings-section-body">
+        <div class="form-group"><label>New Password</label><input type="password" name="new_password" placeholder="Leave blank to keep current"></div>
+        <div class="form-group"><label>Confirm Password</label><input type="password" name="confirm_password"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+    <a href="{{ url_for('settings.settings') }}" class="btn">Cancel</a>
+    <button type="submit" class="btn btn-primary" style="min-width:160px">💾 Save All Settings</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SETT = {
+  applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('alchemy_theme', theme);
+    document.getElementById('theme-select').value = theme;
+    document.getElementById('preview-dark').style.borderColor  = theme==='dark'  ? 'var(--amber)' : 'var(--border)';
+    document.getElementById('preview-light').style.borderColor = theme==='light' ? 'var(--amber)' : 'var(--border)';
+  },
+  async addCat() {
+    const name=document.getElementById('new-cat').value.trim();
+    if(!name) { showFlash('Enter a category name','error'); return; }
+    try {
+      const d=await api('/api/category','POST',{name});
+      const list=document.getElementById('cat-list');
+      const item=document.createElement('div');
+      item.className='cat-list-item'; item.dataset.id=d.id;
+      item.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px';
+      item.innerHTML=`<span>📦 ${d.name}</span><button type="button" class="btn btn-xs btn-danger" onclick="SETT.delCat(${d.id},${JSON.stringify(d.name)})">✕</button>`;
+      list.appendChild(item);
+      document.getElementById('new-cat').value='';
+      showFlash('Category added','success');
+    } catch(e) { showFlash(e.message,'error'); }
+  },
+  async delCat(id,name) {
+    if(!confirmAction(`Delete category "${name}"?`)) return;
+    try {
+      await api(`/api/category/${id}`,'DELETE');
+      document.querySelector(`.cat-list-item[data-id="${id}"]`)?.remove();
+      showFlash('Category deleted','success');
+    } catch(e) { showFlash(e.message,'error'); }
+  }
+};
+
+(function initSettingsAccordion() {
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  const sections = document.querySelectorAll('.settings-section');
+  if (!sections.length) return;
+  if (isMobile) {
+    sections.forEach((section, index) => {
+      const header = section.querySelector('.settings-section-header');
+      if (!header) return;
+      section.classList.toggle('collapsed', index !== 0);
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', () => section.classList.toggle('collapsed'));
+    });
+  } else {
+    sections.forEach(section => section.classList.remove('collapsed'));
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Audit Log{% endblock %}
+{% block page_title %}📋 Audit Log{% endblock %}
+{% block topbar_actions %}<span class="badge badge-gray">{{ total }} records</span>{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+  <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;width:100%">
+    <div class="form-group" style="margin:0;min-width:180px">
+      <label>Action</label>
+      <select name="action">
+        <option value="">All Actions</option>
+        {% for a in actions %}<option value="{{ a }}" {% if a==action_filter %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;min-width:160px"><label>Username</label><input type="text" name="username" value="{{ username_filter }}" placeholder="Filter by user…"></div>
+    <div class="form-group" style="margin:0;min-width:200px"><label>Search Details</label><input type="text" name="search" value="{{ search }}" placeholder="Search…"></div>
+    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+    <a href="{{ url_for('audit.audit_log') }}" class="btn btn-sm">Clear</a>
+  </form>
+</div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap desktop-only"><table>
+    <thead><tr><th>Timestamp</th><th>Action</th><th>User</th><th>Details</th><th>IP</th></tr></thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td class="td-mono" style="font-size:10px;white-space:nowrap">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '—' }}</td>
+        <td>
+          {% if 'DELETE' in log.action or 'LOCK' in log.action %}<span class="badge badge-red">{{ log.action }}</span>
+          {% elif 'ADD' in log.action or 'CREATE' in log.action or 'SETUP' in log.action %}<span class="badge badge-green">{{ log.action }}</span>
+          {% elif 'LOGIN' in log.action %}<span class="badge badge-blue">{{ log.action }}</span>
+          {% elif 'EDIT' in log.action or 'SAVE' in log.action or 'ADJUST' in log.action %}<span class="badge badge-yellow">{{ log.action }}</span>
+          {% elif 'SALE' in log.action %}<span class="badge badge-amber">{{ log.action }}</span>
+          {% else %}<span class="badge badge-gray">{{ log.action }}</span>{% endif %}
+        </td>
+        <td class="text-amber" style="font-family:var(--font-mono);font-size:11px">{{ log.username or '—' }}</td>
+        <td style="color:var(--text2);font-size:11px">{{ log.details or '—' }}</td>
+        <td class="td-mono" style="font-size:10px">{{ log.ip_address or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-muted" style="padding:24px">No audit records found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="mobile-only" style="display:flex;flex-direction:column;gap:10px">
+  {% for log in logs %}
+  <div class="card admin-mobile-card">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+      <div class="td-mono" style="font-size:10px">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '—' }}</div>
+      <div>
+        {% if 'DELETE' in log.action or 'LOCK' in log.action %}<span class="badge badge-red">{{ log.action }}</span>
+        {% elif 'ADD' in log.action or 'CREATE' in log.action or 'SETUP' in log.action %}<span class="badge badge-green">{{ log.action }}</span>
+        {% elif 'LOGIN' in log.action %}<span class="badge badge-blue">{{ log.action }}</span>
+        {% elif 'EDIT' in log.action or 'SAVE' in log.action or 'ADJUST' in log.action %}<span class="badge badge-yellow">{{ log.action }}</span>
+        {% elif 'SALE' in log.action %}<span class="badge badge-amber">{{ log.action }}</span>
+        {% else %}<span class="badge badge-gray">{{ log.action }}</span>{% endif %}
+      </div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text2)">{{ log.details or '—' }}</div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="badge badge-gray">{{ log.username or '—' }}</span>
+      <span class="badge badge-gray">{{ log.ip_address or '—' }}</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="card text-center text-muted">No audit records found</div>
+  {% endfor %}
+</div>
+
+{% if pages > 1 %}
+<div class="pagination" style="margin-top:16px">
+  {% if page > 1 %}<a href="{{ url_for('audit.audit_log', page=page-1, action=action_filter, username=username_filter, search=search) }}" class="page-btn">◀</a>{% endif %}
+  {% for p in range([1, page-2]|max, ([pages, page+2]|min) + 1) %}
+    <a href="{{ url_for('audit.audit_log', page=p, action=action_filter, username=username_filter, search=search) }}" class="page-btn {{ 'active' if p==page else '' }}">{{ p }}</a>
+  {% endfor %}
+  {% if page < pages %}<a href="{{ url_for('audit.audit_log', page=page+1, action=action_filter, username=username_filter, search=search) }}" class="page-btn">▶</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Backups{% endblock %}
+{% block page_title %}💾 Backups{% endblock %}
+{% block topbar_actions %}<button class="btn btn-primary btn-sm" onclick="openModal('create-modal')">+ Create Backup</button>{% endblock %}
+
+{% block content %}
+<div class="card" style="padding:0">
+  <div class="table-wrap desktop-only"><table>
+    <thead><tr><th>Filename</th><th>Created</th><th>Size</th><th>Notes</th><th>Created By</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for b in backups %}
+      <tr>
+        <td class="text-mono text-amber" style="font-size:11px">{{ b.filename }}</td>
+        <td class="td-mono" style="font-size:11px">{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '—' }}</td>
+        <td class="td-mono">{{ (b.size_bytes/1024)|round(1) }} KB</td>
+        <td style="color:var(--text2)">{{ b.notes or '—' }}</td>
+        <td>{{ b.creator.username if b.creator else '—' }}</td>
+        <td>
+          <div style="display:flex;gap:4px">
+            <a href="/api/backups/{{ b.id }}/download" class="btn btn-xs">⬇ Download</a>
+            <button class="btn btn-xs btn-danger" onclick="BKP.delete({{ b.id }},{{ b.filename|tojson }})">✕ Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted" style="padding:24px">No backups yet. Create one now.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="mobile-only" style="display:flex;flex-direction:column;gap:10px">
+  {% for b in backups %}
+  <div class="card admin-mobile-card">
+    <div style="font-weight:700" class="text-mono text-amber">{{ b.filename }}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      <span class="badge badge-gray">{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '—' }}</span>
+      <span class="badge badge-blue">{{ (b.size_bytes/1024)|round(1) }} KB</span>
+    </div>
+    <div style="margin-top:8px;color:var(--text2);font-size:11px">{{ b.notes or '—' }}</div>
+    <div style="margin-top:6px;font-size:11px;color:var(--text3)">By: {{ b.creator.username if b.creator else '—' }}</div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <a href="/api/backups/{{ b.id }}/download" class="btn btn-xs">⬇ Download</a>
+      <button class="btn btn-xs btn-danger" onclick="BKP.delete({{ b.id }},{{ b.filename|tojson }})">✕ Delete</button>
+    </div>
+  </div>
+  {% else %}
+  <div class="card text-center text-muted">No backups yet. Create one now.</div>
+  {% endfor %}
+</div>
+
+<div class="modal-overlay" id="create-modal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header"><div class="modal-title">Create Backup</div><button class="modal-close" onclick="closeModal('create-modal')">×</button></div>
+    <div class="modal-body"><div class="form-group"><label>Notes (optional)</label><input type="text" id="bkp-notes" placeholder="e.g. Before product update"></div></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('create-modal')">Cancel</button>
+      <button class="btn btn-primary" id="create-bkp-btn" onclick="BKP.create()">Create</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BKP = {
+  async create() {
+    const btn=document.getElementById('create-bkp-btn'), notes=document.getElementById('bkp-notes').value;
+    setLoading(btn,true,'Creating…');
+    try { await api('/api/backups/create','POST',{notes}); showFlash('Backup created','success'); closeModal('create-modal'); setTimeout(()=>location.reload(),900); }
+    catch(e) { showFlash(e.message,'error'); } finally { setLoading(btn,false); }
+  },
+  async delete(id,fname) {
+    if(!confirmAction(`Delete backup "${fname}"?`)) return;
+    try { await api(`/api/backups/${id}/delete`,'DELETE'); showFlash('Backup deleted','success'); setTimeout(()=>location.reload(),800); }
+    catch(e) { showFlash(e.message,'error'); }
+  }
+};
+</script>
+{% endblock %}

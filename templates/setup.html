@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Setup — AlchemyPOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-box setup-box">
+    <div class="auth-brand">
+      <div class="brand-icon">⚗</div>
+      <h1>AlchemyPOS Setup</h1>
+      <p>CREATE YOUR ADMIN ACCOUNT</p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="flash flash-{{ cat }}" style="margin-bottom:14px">{{ msg }}</div>{% endfor %}
+    {% endwith %}
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="font-size:11px;font-weight:700;color:var(--amber);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px">Admin Account</div>
+      <div class="form-row">
+        <div class="form-group"><label>Username *</label><input type="text" name="username" required placeholder="admin"></div>
+        <div class="form-group"><label>Full Name</label><input type="text" name="full_name" placeholder="Administrator"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Password *</label><input type="password" name="password" required placeholder="Min 6 characters"></div>
+        <div class="form-group"><label>Confirm *</label><input type="password" name="confirm_password" required></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--amber);letter-spacing:1px;text-transform:uppercase;margin:16px 0 14px">Security Questions</div>
+      <div class="form-group"><label>Question 1</label><input type="text" name="q1" value="What was your first pet's name?"></div>
+      <div class="form-group"><label>Answer 1 *</label><input type="text" name="a1" required></div>
+      <div class="form-group"><label>Question 2</label><input type="text" name="q2" value="What city were you born in?"></div>
+      <div class="form-group"><label>Answer 2 *</label><input type="text" name="a2" required></div>
+      <div class="form-group"><label>Question 3</label><input type="text" name="q3" value="What is your mother's maiden name?"></div>
+      <div class="form-group"><label>Answer 3 *</label><input type="text" name="a3" required></div>
+      <button type="submit" class="btn btn-primary auth-submit" style="margin-top:8px">Create Admin Account →</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}Inventory{% endblock %}
+{% block page_title %}📦 Inventory{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary btn-sm" onclick="INV.openAdd()">+ Add Product</button>
+{% endblock %}
+
+{% block content %}
+<div class="inv-layout">
+  <!-- Main table -->
+  <div>
+    <div class="inv-toolbar">
+      <div class="search-wrap" style="flex:1;min-width:200px">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="inv-search" placeholder="Search products, barcodes…">
+      </div>
+      <select id="inv-cat-filter" style="width:150px">
+        <option value="">All Categories</option>
+        {% for cat in categories %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-sm" onclick="INV.openAdd()">+ Add</button>
+      <button class="btn btn-sm" onclick="openModal('import-modal')">⬆ Import</button>
+      <a href="/api/inventory/export" class="btn btn-sm">⬇ Export</a>
+      <a href="/api/inventory/sample-csv" class="btn btn-sm">Sample CSV</a>
+    </div>
+
+    <div class="card" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Product</th><th>Category</th><th>Price</th><th>Cost</th>
+            <th>Stock</th><th>Status</th><th>Margin</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="inv-tbody">
+            <tr><td colspan="8" class="text-center text-muted" style="padding:24px">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="inv-mobile-list" class="mobile-only" style="display:flex;flex-direction:column;gap:10px;margin-top:10px"></div>
+  </div>
+
+  <!-- Sidebar -->
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">⚠ Stock Alerts <span id="alerts-count" class="badge badge-red">0</span></div>
+      <div id="inv-alerts"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+    </div>
+    <div class="card" id="product-detail-card" style="display:none">
+      <div id="product-detail-panel"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT PRODUCT MODAL -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title" id="pm-modal-title">Add Product</div>
+      <button class="modal-close" onclick="closeModal('product-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="product-form" onsubmit="return false"></form>
+      <input type="hidden" id="product-id">
+      <div class="form-row">
+        <div class="form-group"><label>Name *</label><input type="text" id="f-name" required></div>
+        <div class="form-group"><label>Barcode</label><input type="text" id="f-barcode"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" id="f-category" list="cat-datalist" value="General">
+          <datalist id="cat-datalist">{% for c in categories %}<option value="{{ c }}">{% endfor %}</datalist>
+        </div>
+        <div class="form-group"><label>Unit</label><input type="text" id="f-unit" value="{{ settings.default_unit }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Price ({{ settings.currency_symbol }})</label><input type="number" id="f-price" min="0" step="0.01" value="0"></div>
+        <div class="form-group"><label>Cost ({{ settings.currency_symbol }})</label><input type="number" id="f-cost" min="0" step="0.01" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" id="stock-init-group"><label>Initial Stock</label><input type="number" id="f-stock" min="0" step="0.01" value="0"></div>
+        <div class="form-group"><label>Low Stock Alert At</label><input type="number" id="f-low" min="0" step="0.01" value="{{ settings.default_low_stock }}"></div>
+      </div>
+      <div class="form-group"><label>Description</label><input type="text" id="f-desc" placeholder="Optional description"></div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="f-featured">
+        <label for="f-featured">Featured product (shown first in POS)</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('product-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-product-btn" onclick="INV.saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADJUST STOCK MODAL -->
+<div class="modal-overlay" id="adjust-modal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title">Adjust Stock</div>
+      <button class="modal-close" onclick="closeModal('adjust-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="adjust-id">
+      <div class="form-group">
+        <label>Amount (+ to add, − to subtract)</label>
+        <input type="number" id="adjust-amount" step="0.01" placeholder="e.g. 20 or -5" autofocus>
+      </div>
+      <div class="form-group">
+        <label>Reason</label>
+        <input type="text" id="adjust-reason" placeholder="Restock, Damage, Expiry, Return…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('adjust-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-adjust-btn" onclick="INV.saveAdjust()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV IMPORT MODAL -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">Import Products from CSV</div>
+      <button class="modal-close" onclick="closeModal('import-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2);font-size:12px;margin-bottom:14px">
+        Columns: name, barcode, category, price, cost, unit, stock, low_stock_threshold<br>
+        <a href="/api/inventory/sample-csv" style="color:var(--amber)">Download sample CSV</a>
+      </p>
+      <div class="form-group"><label>CSV File</label><input type="file" id="import-file" accept=".csv"></div>
+      <div id="import-result" style="color:var(--green);font-size:12px;margin-top:8px;font-family:var(--font-mono)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('import-modal')">Close</button>
+      <button class="btn btn-primary" id="import-btn" onclick="INV.submitImport()">Import</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script>
+INV.init({{ settings | tojson }});
+// Show detail card on select
+const _orig = INV.selectProduct.bind(INV);
+INV.selectProduct = async function(id) {
+  await _orig(id);
+  document.getElementById('product-detail-card').style.display = '';
+};
+</script>
+{% endblock %}
